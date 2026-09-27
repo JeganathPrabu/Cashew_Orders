@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Launch Chrome against localhost",
+            "preLaunchTask": "start-local-server",
+            "url": "http://localhost:5173/index.html",
+            "webRoot": "${workspaceFolder}/public"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Launch Chrome (admin page)",
+            "preLaunchTask": "start-local-server",
+            "url": "http://localhost:5173/admin.html",
+            "webRoot": "${workspaceFolder}/public"
+        }
+    ]
+}
