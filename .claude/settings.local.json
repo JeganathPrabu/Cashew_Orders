@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python --version 2>$null)",
+      "PowerShell(py --version 2>$null)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(firebase --version 2>$null)",
+      "PowerShell(npm install -g firebase-tools)",
+      "PowerShell(firebase --version)",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\hp\\\\AppData\\\\Roaming\\\\npm\"; firebase --version)",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\hp\\\\AppData\\\\Roaming\\\\npm\"; firebase login)",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\hp\\\\AppData\\\\Roaming\\\\npm\"; firebase login \"4/0ATsMZqAXHLkJ9YZ_E3pj85k3_uWt4aAnmU2FpQ9_cTuzSXMOqmOiUmkpzWXxzlgbuPAWOA\")",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\hp\\\\AppData\\\\Roaming\\\\npm\"; firebase deploy --only firestore:rules,hosting)",
+      "PowerShell($env:PATH += \";C:\\\\Users\\\\hp\\\\AppData\\\\Roaming\\\\npm\"; firebase deploy --only hosting)"
+    ]
+  }
+}

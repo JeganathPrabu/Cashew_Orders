@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Cashews</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="theme.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="app-header">
+      <span class="header-spacer" aria-hidden="true"></span>
+      <div class="header-titles">
+        <h1>
+          <img class="brand-logo" src="logo.png" alt="Panruti Cashew logo" width="61" height="64" />
+          Panruti Cashews
+        </h1>
+        <p>Place your order below</p>
+      </div>
+      <div class="theme-toggle-wrap">
+        <label class="theme-toggle" for="theme-toggle-checkbox">
+          <span class="visually-hidden">Toggle dark mode</span>
+          <input type="checkbox" role="switch" id="theme-toggle-checkbox" class="theme-toggle-input" />
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-thumb"></span>
+          </span>
+        </label>
+        <span class="theme-toggle-label" aria-hidden="true">Dark Mode</span>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="product-list" id="product-list">
+        <div class="product-row"><span class="name">Loading…</span></div>
+      </div>
+    </div>
+
+    <div id="status-message" class="status-message"></div>
+
+    <div class="card">
+      <form id="order-form">
+        <div class="field">
+          <label for="apartment">Apartment</label>
+          <select id="apartment" required>
+            <option value="" disabled selected>Select apartment</option>
+            <option value="Navin's">Navin's</option>
+            <option value="Casa Grande">Casa Grande</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="flatNumber">Flat Number</label>
+          <input type="text" id="flatNumber" placeholder="e.g. A-204" required />
+        </div>
+
+        <div class="field">
+          <label for="quantity">Quantity (half kg packets)</label>
+          <select id="quantity" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+
+        <div class="total-line">
+          <span>Total</span>
+          <span id="total-amount">₹0</span>
+        </div>
+
+        <div class="button-row">
+          <button type="button" class="secondary" id="cancel-btn">Cancel</button>
+          <button type="submit" class="primary" id="submit-btn" disabled>Submit Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { collection, addDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { db } from "./firebase-config.js";
+
+    // Product name/price is managed from the admin dashboard and lives in Firestore at config/product.
+    const productListEl = document.getElementById("product-list");
+    let unitPrice = 0;
+    let productName = "";
+    let productLoaded = false;
+
+    function renderProduct() {
+      productListEl.innerHTML = `<div class="product-row"><span class="name">${productName}</span><span class="price">₹${unitPrice}</span></div>`;
+    }
+
+    onSnapshot(
+      doc(db, "config", "product"),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          productName = data.name;
+          unitPrice = data.price;
+          productLoaded = true;
+          renderProduct();
+          updateTotal();
+          submitBtn.disabled = false;
+        }
+      },
+      (err) => {
+        console.error(err);
+        productListEl.innerHTML = `<div class="empty-state">Could not load product info.</div>`;
+      }
+    );
+
+    const form = document.getElementById("order-form");
+    const apartmentEl = document.getElementById("apartment");
+    const flatNumberEl = document.getElementById("flatNumber");
+    const quantityEl = document.getElementById("quantity");
+    const totalAmountEl = document.getElementById("total-amount");
+    const submitBtn = document.getElementById("submit-btn");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const statusMessageEl = document.getElementById("status-message");
+
+    function updateTotal() {
+      const qty = parseInt(quantityEl.value, 10) || 0;
+      totalAmountEl.textContent = `₹${qty * unitPrice}`;
+    }
+    quantityEl.addEventListener("change", updateTotal);
+    updateTotal();
+
+    function showStatus(message, type) {
+      statusMessageEl.textContent = message;
+      statusMessageEl.className = `status-message show ${type}`;
+    }
+
+    function hideStatus() {
+      statusMessageEl.className = "status-message";
+    }
+
+    function resetForm() {
+      form.reset();
+      apartmentEl.selectedIndex = 0;
+      quantityEl.value = "1";
+      updateTotal();
+    }
+
+    cancelBtn.addEventListener("click", () => {
+      resetForm();
+      hideStatus();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideStatus();
+
+      if (!productLoaded) {
+        showStatus("Still loading product info, please wait a moment.", "error");
+        return;
+      }
+
+      const apartment = apartmentEl.value;
+      const flatNumber = flatNumberEl.value.trim();
+      const quantity = parseInt(quantityEl.value, 10);
+
+      if (!apartment || !flatNumber || !quantity) {
+        showStatus("Please fill in all fields.", "error");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
+
+      try {
+        await addDoc(collection(db, "orders"), {
+          product: productName,
+          unitPrice,
+          apartment,
+          flatNumber,
+          quantity,
+          total: quantity * unitPrice,
+          status: "open",
+          createdAt: serverTimestamp(),
+          closedAt: null,
+        });
+        showStatus("Order placed! We'll deliver it soon. ✅", "success");
+        resetForm();
+      } catch (err) {
+        console.error(err);
+        showStatus("Something went wrong. Please try again.", "error");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Order";
+      }
+    });
+  </script>
+</body>
+</html>

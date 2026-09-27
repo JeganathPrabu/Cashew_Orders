@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cashew Orders — Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="theme.js"></script>
+</head>
+<body>
+  <div class="page" id="login-screen">
+    <header class="app-header">
+      <span class="header-spacer" aria-hidden="true"></span>
+      <div class="header-titles">
+        <h1>
+          <img class="brand-logo" src="logo.png" alt="Panruti Cashew logo" width="61" height="64" />
+          Orders Dashboard
+        </h1>
+        <p>Sign in to manage orders</p>
+      </div>
+      <div class="theme-toggle-wrap">
+        <label class="theme-toggle" for="theme-toggle-checkbox-login">
+          <span class="visually-hidden">Toggle dark mode</span>
+          <input type="checkbox" role="switch" id="theme-toggle-checkbox-login" class="theme-toggle-input" />
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-thumb"></span>
+          </span>
+        </label>
+        <span class="theme-toggle-label" aria-hidden="true">Dark Mode</span>
+      </div>
+    </header>
+
+    <div id="login-status" class="status-message"></div>
+
+    <div class="card">
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="text" id="email" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" required />
+        </div>
+        <div class="button-row">
+          <button type="submit" class="primary" id="login-btn">Sign In</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="page wide" id="dashboard-screen" hidden>
+    <header class="app-header">
+      <span class="header-spacer" aria-hidden="true"></span>
+      <div class="header-titles">
+        <h1>
+          <img class="brand-logo" src="logo.png" alt="Panruti Cashew logo" width="61" height="64" />
+          Orders Dashboard
+        </h1>
+        <p>Track and close customer orders</p>
+      </div>
+      <div class="theme-toggle-wrap">
+        <label class="theme-toggle" for="theme-toggle-checkbox-dashboard">
+          <span class="visually-hidden">Toggle dark mode</span>
+          <input type="checkbox" role="switch" id="theme-toggle-checkbox-dashboard" class="theme-toggle-input" />
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-thumb"></span>
+          </span>
+        </label>
+        <span class="theme-toggle-label" aria-hidden="true">Dark Mode</span>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="product-manage-row" id="product-view">
+        <div class="product-row">
+          <span class="name" id="product-name-display">Loading…</span>
+          <span class="price" id="product-price-display"></span>
+        </div>
+        <button type="button" class="icon-btn" id="product-edit-btn" aria-label="Edit product">✏️</button>
+      </div>
+      <form id="product-edit-form" hidden>
+        <div class="field">
+          <label for="product-name-input">Product Name</label>
+          <input type="text" id="product-name-input" required />
+        </div>
+        <div class="field">
+          <label for="product-price-input">Price (₹)</label>
+          <input type="number" id="product-price-input" min="1" step="1" required />
+        </div>
+        <div id="product-status" class="status-message"></div>
+        <div class="button-row">
+          <button type="button" class="secondary" id="product-cancel-btn">Cancel</button>
+          <button type="submit" class="primary" id="product-save-btn">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="summary-bar">
+      <div class="summary-stat">
+        <div class="num" id="open-count">0</div>
+        <div class="label">Open Orders</div>
+      </div>
+      <div class="summary-stat">
+        <div class="num" id="open-total">₹0</div>
+        <div class="label">Pending Amount</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-filter="open">Open</button>
+      <button class="tab-btn" data-filter="closed">Closed</button>
+      <button class="tab-btn" data-filter="all">All</button>
+    </div>
+
+    <div id="orders-container"></div>
+
+    <div class="button-row">
+      <button type="button" class="secondary" id="logout-btn">Sign Out</button>
+    </div>
+
+    <footer class="admin-link-hint">This page is unlisted — don't share this link with customers.</footer>
+  </div>
+
+  <script type="module">
+    import { collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { db, auth } from "./firebase-config.js";
+
+    const loginScreen = document.getElementById("login-screen");
+    const dashboardScreen = document.getElementById("dashboard-screen");
+    const loginForm = document.getElementById("login-form");
+    const emailEl = document.getElementById("email");
+    const passwordEl = document.getElementById("password");
+    const loginBtn = document.getElementById("login-btn");
+    const loginStatusEl = document.getElementById("login-status");
+    const logoutBtn = document.getElementById("logout-btn");
+
+    const ordersContainer = document.getElementById("orders-container");
+    const openCountEl = document.getElementById("open-count");
+    const openTotalEl = document.getElementById("open-total");
+    const tabButtons = document.querySelectorAll(".tab-btn");
+
+    const productView = document.getElementById("product-view");
+    const productEditForm = document.getElementById("product-edit-form");
+    const productNameDisplay = document.getElementById("product-name-display");
+    const productPriceDisplay = document.getElementById("product-price-display");
+    const productEditBtn = document.getElementById("product-edit-btn");
+    const productCancelBtn = document.getElementById("product-cancel-btn");
+    const productSaveBtn = document.getElementById("product-save-btn");
+    const productNameInput = document.getElementById("product-name-input");
+    const productPriceInput = document.getElementById("product-price-input");
+    const productStatusEl = document.getElementById("product-status");
+    const productDocRef = doc(db, "config", "product");
+
+    let allOrders = [];
+    let currentFilter = "open";
+    let unsubscribeOrders = null;
+    let unsubscribeProduct = null;
+    let currentProduct = { name: "Whole Cashews (Half Kg)", price: 500 };
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    function formatDate(ts) {
+      if (!ts || !ts.toDate) return "—";
+      return ts.toDate().toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    let editingOrderId = null;
+
+    async function markClosed(orderId) {
+      try {
+        await updateDoc(doc(db, "orders", orderId), {
+          status: "closed",
+          closedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Could not update order. Please try again.");
+      }
+    }
+
+    async function deleteOrder(orderId) {
+      if (!confirm("Delete this order permanently? This cannot be undone.")) return;
+      try {
+        await deleteDoc(doc(db, "orders", orderId));
+      } catch (err) {
+        console.error(err);
+        alert("Could not delete order. Please try again.");
+      }
+    }
+
+    async function saveOrderEdit(orderId, card) {
+      const order = allOrders.find((o) => o.id === orderId);
+      if (!order) return;
+
+      const apartment = card.querySelector(".edit-apartment").value;
+      const flatNumber = card.querySelector(".edit-flat").value.trim();
+      const quantity = parseInt(card.querySelector(".edit-quantity").value, 10);
+
+      if (!apartment || !flatNumber || !quantity) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      try {
+        await updateDoc(doc(db, "orders", orderId), {
+          apartment,
+          flatNumber,
+          quantity,
+          total: quantity * order.unitPrice,
+        });
+        editingOrderId = null;
+        render();
+      } catch (err) {
+        console.error(err);
+        alert("Could not save changes. Please try again.");
+      }
+    }
+
+    function orderCardHTML(order) {
+      if (order.id === editingOrderId) {
+        return `
+          <div class="top-row">
+            <span class="apartment-flat">${order.apartment} · ${order.flatNumber}</span>
+            <span class="badge ${order.status}">${order.status}</span>
+          </div>
+          <div class="field">
+            <label>Apartment</label>
+            <select class="edit-apartment">
+              <option value="Navin's" ${order.apartment === "Navin's" ? "selected" : ""}>Navin's</option>
+              <option value="Casa Grande" ${order.apartment === "Casa Grande" ? "selected" : ""}>Casa Grande</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Flat Number</label>
+            <input type="text" class="edit-flat" value="${order.flatNumber}" />
+          </div>
+          <div class="field">
+            <label>Quantity</label>
+            <select class="edit-quantity">
+              ${[1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${order.quantity === n ? "selected" : ""}>${n}</option>`).join("")}
+            </select>
+          </div>
+          <div class="button-row">
+            <button type="button" class="secondary cancel-edit-order">Cancel</button>
+            <button type="button" class="primary save-edit-order" data-id="${order.id}">Save</button>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="top-row">
+          <span class="apartment-flat">${order.apartment} · ${order.flatNumber}</span>
+          <span class="badge ${order.status}">${order.status}</span>
+        </div>
+        <div class="details">
+          <div>${order.product} × ${order.quantity} — ₹${order.total}</div>
+          <div>Ordered: ${formatDate(order.createdAt)}</div>
+          ${order.status === "closed" ? `<div>Delivered: ${formatDate(order.closedAt)}</div>` : ""}
+        </div>
+        <div class="order-actions">
+          ${order.status === "open" ? `<button class="mark-closed" data-id="${order.id}">Mark Delivered</button>` : ""}
+          <button class="icon-btn small edit-order" data-id="${order.id}" aria-label="Edit order">✏️</button>
+          <button class="icon-btn small delete-order" data-id="${order.id}" aria-label="Delete order">🗑️</button>
+        </div>
+      `;
+    }
+
+    function render() {
+      const filtered = allOrders.filter((o) => {
+        if (currentFilter === "all") return true;
+        return o.status === currentFilter;
+      });
+
+      const openOrders = allOrders.filter((o) => o.status === "open");
+      openCountEl.textContent = openOrders.length;
+      openTotalEl.textContent = `₹${openOrders.reduce((sum, o) => sum + (o.total || 0), 0)}`;
+
+      if (filtered.length === 0) {
+        ordersContainer.innerHTML = `<div class="empty-state">No ${currentFilter === "all" ? "" : currentFilter} orders.</div>`;
+        return;
+      }
+
+      ordersContainer.innerHTML = "";
+      filtered.forEach((order) => {
+        const card = document.createElement("div");
+        card.className = "order-card";
+        card.dataset.id = order.id;
+        card.innerHTML = orderCardHTML(order);
+        ordersContainer.appendChild(card);
+      });
+
+      ordersContainer.querySelectorAll(".mark-closed").forEach((btn) => {
+        btn.addEventListener("click", () => markClosed(btn.dataset.id));
+      });
+
+      ordersContainer.querySelectorAll(".edit-order").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          editingOrderId = btn.dataset.id;
+          render();
+        });
+      });
+
+      ordersContainer.querySelectorAll(".delete-order").forEach((btn) => {
+        btn.addEventListener("click", () => deleteOrder(btn.dataset.id));
+      });
+
+      ordersContainer.querySelectorAll(".cancel-edit-order").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          editingOrderId = null;
+          render();
+        });
+      });
+
+      ordersContainer.querySelectorAll(".save-edit-order").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const card = btn.closest(".order-card");
+          saveOrderEdit(btn.dataset.id, card);
+        });
+      });
+    }
+
+    function renderProductView() {
+      productNameDisplay.textContent = currentProduct.name;
+      productPriceDisplay.textContent = `₹${currentProduct.price}`;
+    }
+
+    function showProductEdit() {
+      productNameInput.value = currentProduct.name;
+      productPriceInput.value = currentProduct.price;
+      productStatusEl.className = "status-message";
+      productView.hidden = true;
+      productEditForm.hidden = false;
+    }
+
+    function showProductView() {
+      productView.hidden = false;
+      productEditForm.hidden = true;
+    }
+
+    function startProductListener() {
+      unsubscribeProduct = onSnapshot(
+        productDocRef,
+        async (snap) => {
+          if (snap.exists()) {
+            currentProduct = snap.data();
+            renderProductView();
+          } else {
+            // First run: seed the product doc with the current default values.
+            try {
+              await setDoc(productDocRef, currentProduct);
+            } catch (err) {
+              console.error("Could not seed product doc", err);
+            }
+          }
+        },
+        (err) => console.error(err)
+      );
+    }
+
+    function stopProductListener() {
+      if (unsubscribeProduct) {
+        unsubscribeProduct();
+        unsubscribeProduct = null;
+      }
+    }
+
+    productEditBtn.addEventListener("click", showProductEdit);
+    productCancelBtn.addEventListener("click", showProductView);
+
+    productEditForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = productNameInput.value.trim();
+      const price = Number(productPriceInput.value);
+
+      if (!name || !price || price <= 0) {
+        productStatusEl.textContent = "Please enter a valid name and price.";
+        productStatusEl.className = "status-message show error";
+        return;
+      }
+
+      productSaveBtn.disabled = true;
+      productSaveBtn.textContent = "Saving...";
+      try {
+        await setDoc(productDocRef, { name, price });
+        showProductView();
+      } catch (err) {
+        console.error(err);
+        productStatusEl.textContent = "Could not save. Please try again.";
+        productStatusEl.className = "status-message show error";
+      } finally {
+        productSaveBtn.disabled = false;
+        productSaveBtn.textContent = "Save";
+      }
+    });
+
+    function startOrdersListener() {
+      const ordersQuery = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+      unsubscribeOrders = onSnapshot(
+        ordersQuery,
+        (snapshot) => {
+          allOrders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+          render();
+        },
+        (err) => {
+          console.error(err);
+          ordersContainer.innerHTML = `<div class="empty-state">Failed to load orders: ${err.message}</div>`;
+        }
+      );
+    }
+
+    function stopOrdersListener() {
+      if (unsubscribeOrders) {
+        unsubscribeOrders();
+        unsubscribeOrders = null;
+      }
+      allOrders = [];
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loginScreen.hidden = true;
+        dashboardScreen.hidden = false;
+        loginStatusEl.className = "status-message";
+        loginForm.reset();
+        startOrdersListener();
+        startProductListener();
+      } else {
+        loginScreen.hidden = false;
+        dashboardScreen.hidden = true;
+        stopOrdersListener();
+        stopProductListener();
+      }
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginStatusEl.className = "status-message";
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Signing in...";
+      try {
+        await signInWithEmailAndPassword(auth, emailEl.value.trim(), passwordEl.value);
+      } catch (err) {
+        console.error(err);
+        loginStatusEl.textContent = "Incorrect email or password.";
+        loginStatusEl.className = "status-message show error";
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign In";
+      }
+    });
+
+    logoutBtn.addEventListener("click", () => signOut(auth));
+  </script>
+</body>
+</html>
