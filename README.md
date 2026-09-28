@@ -105,8 +105,8 @@ To run this against your own Firebase project instead of `cashew-orders`:
 3. Enable **Cloud Firestore** and **Authentication → Email/Password**.
 4. In the Firebase console, add a user under Authentication. This is the admin login.
 5. Deploy the rules and site with `firebase deploy`.
-6. Sign in to `admin.html` and set the product name and price. The customer page shows "Loading…" until this is saved.
+6. Sign in to `admin.html`. On first sign-in it creates the product with a default name and price, which you can then edit. The customer page shows "Loading…" until this has happened.
 
 ## Notes
-- **Changing apartments:** the apartment list appears in both [public/index.html](public/index.html) and [firestore.rules](firestore.rules), so update both and redeploy the rules.
+- **Changing apartments or the quantity limit:** these appear in [public/index.html](public/index.html), in the order edit form in [public/admin.html](public/admin.html), and in [firestore.rules](firestore.rules). Update all three and redeploy the rules.
 - **Changing the logo:** after replacing `public/logo.png`, bump the `?v=` number in its `<img>` tags in `index.html` and `admin.html` so browsers fetch the new image.
