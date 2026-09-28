@@ -11,5 +11,6 @@ Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinu
     Select-Object -ExpandProperty OwningProcess -Unique |
     ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
 
+# dev_server.py sends no-store headers so edited files show on a normal refresh;
 # -u: unbuffered output so VS Code sees "Serving HTTP" and the debugger can launch
-python -u -m http.server $port --bind 127.0.0.1 --directory $root
+python -u (Join-Path $PSScriptRoot 'dev_server.py') $port $root
