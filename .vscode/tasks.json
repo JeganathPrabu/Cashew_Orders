@@ -3,8 +3,13 @@
     "tasks": [
         {
             "label": "start-local-server",
-            "type": "shell",
-            "command": "python -m http.server 5173 --directory public",
+            "type": "process",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/.vscode/start-server.ps1"
+            ],
             "isBackground": true,
             "problemMatcher": {
                 "pattern": { "regexp": "^$" },

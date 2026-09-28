@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "cashew-site",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "5173", "--directory", "public"],
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "D:/Personal/Jegan/US/Claude Code/Cashew_Orders/.vscode/start-server.ps1"],
       "port": 5173
     }
   ]
