@@ -5,12 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Workflow
 - Work on feature branches and merge them into `main`.
 - Never commit directly to `main`.
-- Merging into `main` deploys to production: remind me before every merge that it goes live.
+- Merging into `main` does not deploy. After a merge, remind me to deploy from `main`.
 
 # Deployment
 - Hosted on Firebase Hosting, project `cashew-orders` (https://cashew-orders.web.app).
-- Merging into `main` auto-deploys to production via GitHub Actions.
-- Manual deploys: `firebase deploy --only hosting` or `firebase deploy --only firestore:rules`.
+- Deployment is manual; there is no CI/CD. Deploy only from an up-to-date `main`, never from a feature branch.
+- Order: `firebase deploy --only firestore:rules`, then `firebase deploy --only hosting` (one hosting deploy publishes both the customer and admin pages).
 
 # Documentation
 - Whenever you add or change a feature, update README.md to match.

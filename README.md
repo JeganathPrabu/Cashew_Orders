@@ -85,14 +85,19 @@ Then open:
 
 ## Deploying
 
-Deployment is manual, using the [Firebase CLI](https://firebase.google.com/docs/cli):
+Deployment is manual, using the [Firebase CLI](https://firebase.google.com/docs/cli). Always deploy from `main`, after the feature branch has been merged, so the live site always matches `main`:
 
 ```bash
 npm install -g firebase-tools   # once
 firebase login                  # once
-firebase deploy --only hosting  # publish the website
+
+git checkout main
+git pull
 firebase deploy --only firestore:rules  # publish database rule changes
+firebase deploy --only hosting          # publish the website (customer and admin pages)
 ```
+
+Deploy the rules before the website, so any new fields or edits the pages rely on are already allowed.
 
 Pushing to GitHub does **not** update the live site.
 
