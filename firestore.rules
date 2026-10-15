@@ -17,6 +17,13 @@ service cloud.firestore {
           && request.resource.data.quantity <= 5;
     }
 
+    // The admin can freeze orders from the dashboard (config/settings.ordersFrozen). While frozen,
+    // customers cannot place, edit or cancel orders; the admin still can.
+    function ordersOpen() {
+      let settings = /databases/$(database)/documents/config/settings;
+      return !exists(settings) || get(settings).data.get('ordersFrozen', false) != true;
+    }
+
     function orderAfter(orderId) {
       return getAfter(/databases/$(database)/documents/orders/$(orderId));
     }
@@ -33,7 +40,8 @@ service cloud.firestore {
                     && request.resource.data.quantity is int
                     && request.resource.data.quantity >= 1
                     && request.resource.data.quantity <= 5
-                    && request.resource.data.status == 'open';
+                    && request.resource.data.status == 'open'
+                    && ordersOpen();
 
       // Anyone can fetch a single order by its (unguessable) ID; customers find theirs through
       // openOrders/{mobile}. Only the signed-in admin can list orders.
@@ -41,7 +49,7 @@ service cloud.firestore {
       allow list: if request.auth != null;
 
       // The signed-in admin can either flip status/closedAt, or edit the order's contents.
-      // A customer can edit or cancel an order while it is still open.
+      // A customer can edit or cancel an order while it is still open and orders are not frozen.
       allow update: if (
                       request.auth != null
                       && (
@@ -51,6 +59,7 @@ service cloud.firestore {
                     )
                     || (
                       resource.data.status == 'open'
+                      && ordersOpen()
                       && (
                         validOrderEdit()
                         || (
@@ -92,6 +101,14 @@ service cloud.firestore {
                    && request.resource.data.name.size() > 0
                    && request.resource.data.price is number
                    && request.resource.data.price > 0;
+    }
+
+    match /config/settings {
+      // Anyone can read whether orders are frozen; only the signed-in admin can change it.
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.data.keys().hasOnly(['ordersFrozen'])
+                   && request.resource.data.ordersFrozen is bool;
     }
   }
 }

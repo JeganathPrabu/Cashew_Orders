@@ -115,6 +115,16 @@
       </form>
     </div>
 
+    <div class="card">
+      <div class="freeze-row">
+        <div>
+          <div class="freeze-title">Order Freeze</div>
+          <div class="freeze-state" id="freeze-state">Loading…</div>
+        </div>
+        <button type="button" class="danger" id="freeze-btn" disabled>Freeze Orders</button>
+      </div>
+    </div>
+
     <div class="summary-bar">
       <div class="summary-stat">
         <div class="num" id="open-count">0</div>
@@ -173,10 +183,16 @@
     const productStatusEl = document.getElementById("product-status");
     const productDocRef = doc(db, "config", "product");
 
+    const freezeStateEl = document.getElementById("freeze-state");
+    const freezeBtn = document.getElementById("freeze-btn");
+    const settingsDocRef = doc(db, "config", "settings");
+
     let allOrders = [];
     let currentFilter = "open";
     let unsubscribeOrders = null;
     let unsubscribeProduct = null;
+    let unsubscribeSettings = null;
+    let ordersFrozen = false;
     let currentProduct = { name: "Whole Cashews (500 gms)", price: 500 };
 
     tabButtons.forEach((btn) => {
@@ -433,6 +449,54 @@
       }
     });
 
+    function renderFreeze() {
+      freezeStateEl.textContent = ordersFrozen
+        ? "Frozen: customers cannot place, modify or cancel orders."
+        : "Open: customers can place, modify and cancel orders.";
+      freezeStateEl.classList.toggle("frozen", ordersFrozen);
+      freezeBtn.textContent = ordersFrozen ? "Unfreeze Orders" : "Freeze Orders";
+      freezeBtn.className = ordersFrozen ? "primary" : "danger";
+      freezeBtn.disabled = false;
+    }
+
+    // config/settings is created the first time the admin freezes orders; a missing doc means not frozen.
+    function startSettingsListener() {
+      unsubscribeSettings = onSnapshot(
+        settingsDocRef,
+        (snap) => {
+          ordersFrozen = snap.exists() && snap.data().ordersFrozen === true;
+          renderFreeze();
+        },
+        (err) => {
+          console.error(err);
+          freezeStateEl.textContent = "Could not load the freeze setting.";
+        }
+      );
+    }
+
+    function stopSettingsListener() {
+      if (unsubscribeSettings) {
+        unsubscribeSettings();
+        unsubscribeSettings = null;
+      }
+    }
+
+    freezeBtn.addEventListener("click", async () => {
+      const freeze = !ordersFrozen;
+      const question = freeze
+        ? "Freeze orders? Customers will not be able to place, modify or cancel orders."
+        : "Unfreeze orders? Customers will be able to place, modify and cancel orders again.";
+      if (!confirm(question)) return;
+      freezeBtn.disabled = true;
+      try {
+        await setDoc(settingsDocRef, { ordersFrozen: freeze });
+      } catch (err) {
+        console.error(err);
+        alert("Could not update the freeze setting. Please try again.");
+        freezeBtn.disabled = false;
+      }
+    });
+
     function startOrdersListener() {
       const ordersQuery = query(collection(db, "orders"), orderBy("createdAt", "desc"));
       unsubscribeOrders = onSnapshot(
@@ -464,11 +528,13 @@
         loginForm.reset();
         startOrdersListener();
         startProductListener();
+        startSettingsListener();
       } else {
         loginScreen.hidden = false;
         dashboardScreen.hidden = true;
         stopOrdersListener();
         stopProductListener();
+        stopSettingsListener();
       }
     });
 

@@ -48,6 +48,10 @@
       </div>
     </div>
 
+    <div id="freeze-notice" class="status-message error" role="status">
+      Order Placement is Closed &amp; existing orders cannot be Modified or Cancelled
+    </div>
+
     <div id="status-message" class="status-message"></div>
 
     <div class="card">
@@ -70,7 +74,7 @@
             <div id="existing-address"></div>
             <div id="existing-date"></div>
           </div>
-          <div class="button-row">
+          <div class="button-row" id="existing-actions">
             <button type="button" class="danger" id="cancel-order-btn">Cancel Order</button>
             <button type="button" class="primary" id="modify-order-btn">Modify Order</button>
           </div>
@@ -165,6 +169,7 @@
     const existingSummaryEl = document.getElementById("existing-summary");
     const existingAddressEl = document.getElementById("existing-address");
     const existingDateEl = document.getElementById("existing-date");
+    const existingActionsEl = document.getElementById("existing-actions");
     const modifyOrderBtn = document.getElementById("modify-order-btn");
     const cancelOrderBtn = document.getElementById("cancel-order-btn");
     const orderFieldsEl = document.getElementById("order-fields");
@@ -185,10 +190,41 @@
     let lookupSeq = 0;
     let busy = false;
 
+    // The admin can freeze orders (config/settings.ordersFrozen). While frozen, customers can still
+    // look up their open order but cannot place, modify or cancel one; firestore.rules enforces this.
+    const freezeNoticeEl = document.getElementById("freeze-notice");
+    let ordersFrozen = false;
+
+    onSnapshot(
+      doc(db, "config", "settings"),
+      (snap) => {
+        ordersFrozen = snap.exists() && snap.data().ordersFrozen === true;
+        applyFreeze();
+      },
+      (err) => console.error(err)
+    );
+
+    function applyFreeze() {
+      freezeNoticeEl.classList.toggle("show", ordersFrozen);
+      if (ordersFrozen) hideStatus();
+      if (ordersFrozen && mode === "editing") clearOrderFields();
+      setMode(ordersFrozen && mode === "editing" ? "existing" : mode);
+      if (mode === "new" && mobileHintEl.textContent.startsWith("No open order")) {
+        mobileHintEl.textContent = noOrderHint();
+      }
+    }
+
+    function noOrderHint() {
+      return ordersFrozen
+        ? "No open order for this number."
+        : "No open order for this number. Fill in the details below to place one.";
+    }
+
     function setMode(newMode) {
       mode = newMode;
       existingOrderEl.hidden = mode !== "existing";
-      orderFieldsEl.hidden = mode === "existing";
+      orderFieldsEl.hidden = mode === "existing" || ordersFrozen;
+      existingActionsEl.hidden = ordersFrozen;
       submitBtn.textContent = mode === "editing" ? "Update Order" : "Submit Order";
       cancelBtn.textContent = mode === "editing" ? "Discard Changes" : "Cancel";
       refreshSubmitButton();
@@ -297,7 +333,7 @@
           mobileHintEl.textContent = "";
           setMode("existing");
         } else {
-          mobileHintEl.textContent = "No open order for this number. Fill in the details below to place one.";
+          mobileHintEl.textContent = noOrderHint();
           setMode("new");
         }
       } catch (err) {
@@ -332,7 +368,7 @@
     });
 
     modifyOrderBtn.addEventListener("click", () => {
-      if (!existingOrder) return;
+      if (!existingOrder || ordersFrozen) return;
       hideStatus();
       apartmentEl.value = existingOrder.apartment;
       flatNumberEl.value = existingOrder.flatNumber;
@@ -342,7 +378,7 @@
     });
 
     cancelOrderBtn.addEventListener("click", async () => {
-      if (!existingOrder) return;
+      if (!existingOrder || ordersFrozen) return;
       if (!confirm("Cancel your order? This cannot be undone.")) return;
       hideStatus();
       cancelOrderBtn.disabled = true;
@@ -380,6 +416,7 @@
       e.preventDefault();
       hideStatus();
 
+      if (ordersFrozen) return;
       if (mode === "existing") {
         showStatus("You already have an open order. Modify or cancel it below.", "error");
         return;
