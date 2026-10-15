@@ -153,7 +153,7 @@
   </div>
 
   <script type="module">
-    import { collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { db, auth } from "./firebase-config.js";
 
@@ -228,6 +228,50 @@
       }
     }
 
+    // Reopening also points openOrders/{mobile} at the order so the customer page finds it again,
+    // unless that number already has another open order (a number shows only one open order).
+    async function reopenOrder(orderId) {
+      const order = allOrders.find((o) => o.id === orderId);
+      if (!order) return;
+      const otherOpen = order.mobile && allOrders.find(
+        (o) => o.id !== orderId && o.status === "open" && o.mobile === order.mobile
+      );
+      const question = otherOpen
+        ? `Mobile ${order.mobile} already has another open order (${otherOpen.apartment} · ${otherOpen.flatNumber}). ` +
+          "Reopen this one anyway? The customer page will keep showing the other order."
+        : "Reopen this order?";
+      if (!confirm(question)) return;
+      try {
+        const batch = writeBatch(db);
+        batch.update(doc(db, "orders", orderId), {
+          status: "open",
+          closedAt: null,
+          cancelledAt: deleteField(),
+        });
+        if (order.mobile && !otherOpen) {
+          batch.set(doc(db, "openOrders", order.mobile), { orderId });
+        }
+        await batch.commit();
+      } catch (err) {
+        console.error(err);
+        alert("Could not reopen order. Please try again.");
+      }
+    }
+
+    // Open orders for the same apartment and flat may be duplicates. Flat numbers are compared
+    // ignoring case, spaces and punctuation, so "A-204" and "a 204" match.
+    function flatKey(order) {
+      return `${order.apartment}|${String(order.flatNumber || "").toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+    }
+
+    function openCountsByFlat() {
+      const counts = new Map();
+      allOrders.forEach((o) => {
+        if (o.status === "open") counts.set(flatKey(o), (counts.get(flatKey(o)) || 0) + 1);
+      });
+      return counts;
+    }
+
     async function deleteOrder(orderId) {
       if (!confirm("Delete this order permanently? This cannot be undone.")) return;
       try {
@@ -266,7 +310,7 @@
       }
     }
 
-    function orderCardHTML(order) {
+    function orderCardHTML(order, duplicateCount) {
       if (order.id === editingOrderId) {
         return `
           <div class="top-row">
@@ -306,6 +350,7 @@
           <span class="apartment-flat">${order.apartment} · ${order.flatNumber}</span>
           <span class="badge ${order.status}">${order.status}</span>
         </div>
+        ${duplicateCount > 1 ? `<div class="duplicate-warning">⚠️ Possible duplicate: ${duplicateCount} open orders for this flat. Please verify.</div>` : ""}
         <div class="details">
           <div>${order.product} × ${order.quantity} — ₹${order.total}</div>
           ${order.mobile ? `<div>Mobile: <a href="tel:${order.mobile}">${order.mobile}</a></div>` : ""}
@@ -314,7 +359,9 @@
           ${order.status === "cancelled" ? `<div>Cancelled: ${formatDate(order.cancelledAt)}</div>` : ""}
         </div>
         <div class="order-actions">
-          ${order.status === "open" ? `<button class="mark-closed" data-id="${order.id}">Mark Delivered</button>` : ""}
+          ${order.status === "open"
+            ? `<button class="mark-closed" data-id="${order.id}">Mark Delivered</button>`
+            : `<button class="primary reopen-order" data-id="${order.id}">Reopen Order</button>`}
           <button class="icon-btn small edit-order" data-id="${order.id}" aria-label="Edit order">✏️</button>
           <button class="icon-btn small delete-order" data-id="${order.id}" aria-label="Delete order">🗑️</button>
         </div>
@@ -336,17 +383,23 @@
         return;
       }
 
+      const flatCounts = openCountsByFlat();
       ordersContainer.innerHTML = "";
       filtered.forEach((order) => {
+        const duplicateCount = order.status === "open" ? flatCounts.get(flatKey(order)) : 0;
         const card = document.createElement("div");
-        card.className = "order-card";
+        card.className = duplicateCount > 1 ? "order-card duplicate" : "order-card";
         card.dataset.id = order.id;
-        card.innerHTML = orderCardHTML(order);
+        card.innerHTML = orderCardHTML(order, duplicateCount);
         ordersContainer.appendChild(card);
       });
 
       ordersContainer.querySelectorAll(".mark-closed").forEach((btn) => {
         btn.addEventListener("click", () => markClosed(btn.dataset.id));
+      });
+
+      ordersContainer.querySelectorAll(".reopen-order").forEach((btn) => {
+        btn.addEventListener("click", () => reopenOrder(btn.dataset.id));
       });
 
       ordersContainer.querySelectorAll(".edit-order").forEach((btn) => {

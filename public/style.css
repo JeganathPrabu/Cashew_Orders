@@ -626,6 +626,21 @@ button:disabled {
   color: #fff;
 }
 
+/* Open orders that share an apartment and flat with another open order. */
+.order-card.duplicate {
+  border: 2px solid var(--danger);
+}
+
+.duplicate-warning {
+  background: var(--status-error-bg);
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
 .icon-btn.small {
   width: 36px;
   height: 36px;

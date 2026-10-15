@@ -23,6 +23,8 @@ A lightweight web app for taking cashew orders from residents of nearby apartmen
 - Summary of open orders and the total amount pending
 - Open / Closed / Cancelled / All tabs, with orders updating in real time
 - Each order shows the customer's mobile number as a tap-to-call link
+- **Reopen Order** on closed and cancelled orders, which puts them back in Open. If the customer's number has no other open order, the customer page shows the reopened order again; if it does, the admin is warned before reopening.
+- Open orders that share an apartment and flat number with another open order are outlined in red with a "Possible duplicate" warning, so they can be checked manually. Flat numbers are matched ignoring case, spaces and punctuation (`A-204` matches `a 204`).
 - Mark an order as delivered, edit its apartment, flat number and quantity (the mobile number is shown read-only), or delete it (with confirmation)
 
 ### Both pages
@@ -34,7 +36,7 @@ Access is enforced by [firestore.rules](firestore.rules), not by hiding the admi
 - Anyone can create an order, but only with valid fields (10-digit mobile number, known apartment, non-empty flat number, quantity 1–5, status `open`).
 - Anyone can fetch a single order by its ID, but only a signed-in admin can list orders. The customer page finds an order through `openOrders/{mobile}`, a small document holding the ID of that number's open order. It can only point at an open order placed with the same number.
 - While orders are frozen (`config/settings.ordersFrozen` is `true`), customers cannot create, edit or cancel orders. Only a signed-in admin can change this setting.
-- While an order is open, the customer can change its apartment, flat number and quantity, or cancel it (status `cancelled`). Only a signed-in admin can mark orders delivered, edit closed orders or delete orders.
+- While an order is open, the customer can change its apartment, flat number and quantity, or cancel it (status `cancelled`). Only a signed-in admin can mark orders delivered, reopen closed or cancelled orders, edit closed orders or delete orders.
 - Because there is no customer sign-in, anyone who knows a mobile number can see, change or cancel that number's open order.
 - Anyone can read the product; only a signed-in admin can change it.
 

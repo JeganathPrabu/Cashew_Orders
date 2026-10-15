@@ -48,12 +48,13 @@ service cloud.firestore {
       allow get: if true;
       allow list: if request.auth != null;
 
-      // The signed-in admin can either flip status/closedAt, or edit the order's contents.
+      // The signed-in admin can either change status (deliver, or reopen a closed/cancelled order),
+      // or edit the order's contents.
       // A customer can edit or cancel an order while it is still open and orders are not frozen.
       allow update: if (
                       request.auth != null
                       && (
-                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'closedAt'])
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'closedAt', 'cancelledAt'])
                         || validOrderEdit()
                       )
                     )
