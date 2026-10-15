@@ -5,6 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cashew Orders — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" />
   <link rel="stylesheet" href="style.css" />
   <script src="theme.js"></script>
 </head>
@@ -16,7 +19,7 @@
       <div class="header-titles">
         <h1>
           <img class="brand-logo" src="logo.png?v=3" alt="Panruti Cashew logo" width="64" height="64" />
-          Orders Dashboard
+          Dashboard
         </h1>
         <p>Sign in to manage orders</p>
       </div>
@@ -64,9 +67,9 @@
       <div class="header-titles">
         <h1>
           <img class="brand-logo" src="logo.png?v=3" alt="Panruti Cashew logo" width="64" height="64" />
-          Orders Dashboard
+          Dashboard
         </h1>
-        <p>Track and close customer orders</p>
+        <p class="tagline">Manage customer orders</p>
       </div>
       <div class="theme-toggle-wrap">
         <label class="theme-toggle" for="theme-toggle-checkbox-dashboard">
@@ -253,6 +256,10 @@
           <div class="top-row">
             <span class="apartment-flat">${order.apartment} · ${order.flatNumber}</span>
             <span class="badge ${order.status}">${order.status}</span>
+          </div>
+          <div class="field">
+            <label>Mobile #</label>
+            <input type="tel" value="${order.mobile || "Not provided"}" readonly />
           </div>
           <div class="field">
             <label>Apartment</label>

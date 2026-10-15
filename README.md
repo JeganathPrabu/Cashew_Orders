@@ -12,6 +12,7 @@ A lightweight web app for taking cashew orders from residents of nearby apartmen
 - When a mobile number with an open order is entered, that order is shown with **Modify Order** and **Cancel Order** buttons. A number can have only one open order at a time.
 - Running total calculated as the quantity changes (an order being modified keeps the price it was placed at)
 - A pop-up notification when an order is placed, updated or cancelled, and an error message if something fails
+- A contact number at the bottom of the page for order details or enquiries (a tap-to-call link; change it in the footer of `index.html`)
 
 ### Admin dashboard (`admin.html`)
 - Email/password sign-in (Firebase Authentication)
@@ -19,7 +20,7 @@ A lightweight web app for taking cashew orders from residents of nearby apartmen
 - Summary of open orders and the total amount pending
 - Open / Closed / Cancelled / All tabs, with orders updating in real time
 - Each order shows the customer's mobile number as a tap-to-call link
-- Mark an order as delivered, edit its details, or delete it (with confirmation)
+- Mark an order as delivered, edit its apartment, flat number and quantity (the mobile number is shown read-only), or delete it (with confirmation)
 
 ### Both pages
 - Sun/moon toggle for light and dark mode, which follows the system setting by default and remembers your choice

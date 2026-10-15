@@ -96,7 +96,10 @@ header.app-header {
   text-align: center;
 }
 
+/* Sit level with the logo/title row rather than centred against title + subtitle. */
 .theme-toggle-wrap {
+  align-self: flex-start;
+  margin-top: calc((var(--logo-size) - 28px) / 2);
   flex-shrink: 0;
   min-width: 60px;
   display: flex;
@@ -299,6 +302,15 @@ header.app-header p.tagline {
   flex: 1;
 }
 
+/* Smaller edit button whose extra height overlaps the card padding, so the card is as
+   short as the customer page's product card. */
+.product-manage-row .icon-btn {
+  width: 32px;
+  height: 32px;
+  margin: -4px 0;
+  font-size: 0.9rem;
+}
+
 .icon-btn {
   flex: 0 0 auto;
   width: 40px;
@@ -346,6 +358,11 @@ input[type="email"]:focus,
 input[type="tel"]:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+input[readonly] {
+  background: var(--btn-secondary-bg);
+  color: var(--muted);
 }
 
 .total-line {
@@ -614,6 +631,25 @@ button:disabled {
   text-align: center;
   color: var(--muted);
   padding: 30px 10px;
+}
+
+footer.contact-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 24px 0 8px;
+}
+
+footer.contact-footer a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+footer.contact-footer a:hover {
+  text-decoration: underline;
 }
 
 footer.admin-link-hint {
