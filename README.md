@@ -8,25 +8,29 @@ A lightweight web app for taking cashew orders from residents of nearby apartmen
 
 ### Customer order page (`index.html`)
 - Shows the current product and price, updated live from the database
-- Order form: apartment, flat number and quantity (1–5 half-kg packets)
-- Running total calculated as the quantity changes
-- Success and error messages after submitting
+- Order form: mobile number (10 digits, numbers only), apartment, flat number and quantity (1–5 half-kg packets). All fields are mandatory.
+- When a mobile number with an open order is entered, that order is shown with **Modify Order** and **Cancel Order** buttons. A number can have only one open order at a time.
+- Running total calculated as the quantity changes (an order being modified keeps the price it was placed at)
+- A pop-up notification when an order is placed, updated or cancelled, and an error message if something fails
 
 ### Admin dashboard (`admin.html`)
 - Email/password sign-in (Firebase Authentication)
 - Edit the product name and price shown to customers
 - Summary of open orders and the total amount pending
-- Open / Closed / All tabs, with orders updating in real time
+- Open / Closed / Cancelled / All tabs, with orders updating in real time
+- Each order shows the customer's mobile number as a tap-to-call link
 - Mark an order as delivered, edit its details, or delete it (with confirmation)
 
 ### Both pages
-- Light and dark mode toggle, which follows the system setting by default and remembers your choice
+- Sun/moon toggle for light and dark mode, which follows the system setting by default and remembers your choice
 - Responsive layout for phones and desktops
 
 ### Security
 Access is enforced by [firestore.rules](firestore.rules), not by hiding the admin page:
-- Anyone can create an order, but only with valid fields (known apartment, non-empty flat number, quantity 1–5, status `open`).
-- Only a signed-in admin can read, update or delete orders.
+- Anyone can create an order, but only with valid fields (10-digit mobile number, known apartment, non-empty flat number, quantity 1–5, status `open`).
+- Anyone can fetch a single order by its ID, but only a signed-in admin can list orders. The customer page finds an order through `openOrders/{mobile}`, a small document holding the ID of that number's open order. It can only point at an open order placed with the same number.
+- While an order is open, the customer can change its apartment, flat number and quantity, or cancel it (status `cancelled`). Only a signed-in admin can mark orders delivered, edit closed orders or delete orders.
+- Because there is no customer sign-in, anyone who knows a mobile number can see, change or cancel that number's open order.
 - Anyone can read the product; only a signed-in admin can change it.
 
 ## Tech used
@@ -34,7 +38,7 @@ Access is enforced by [firestore.rules](firestore.rules), not by hiding the admi
 | Area | Technology |
 | --- | --- |
 | Front end | Plain HTML, CSS and JavaScript (ES modules), with no build step or framework |
-| Database | Cloud Firestore (`orders` collection, `config/product` document) |
+| Database | Cloud Firestore (`orders` and `openOrders` collections, `config/product` document) |
 | Auth | Firebase Authentication (email/password) for the admin |
 | Hosting | Firebase Hosting, serving the `public/` folder |
 | Firebase SDK | v10.14.1, loaded from the gstatic CDN |
