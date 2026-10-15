@@ -10,6 +10,7 @@ A lightweight web app for taking cashew orders from residents of nearby apartmen
 - Shows the current product and price, updated live from the database
 - Order form: mobile number (10 digits, numbers only), apartment, flat number and quantity (1–5 half-kg packets). All fields are mandatory.
 - When a mobile number with an open order is entered, that order is shown with **Modify Order** and **Cancel Order** buttons. A number can have only one open order at a time.
+- After an order is placed or updated, the page keeps the mobile number and shows the order details with **Modify Order** and **Cancel Order**, so the customer can change or cancel it straight away.
 - Running total calculated as the quantity changes (an order being modified keeps the price it was placed at)
 - A pop-up notification when an order is placed, updated or cancelled, and an error message if something fails
 - A contact number at the bottom of the page for order details or enquiries (a tap-to-call link; change it in the footer of `index.html`)

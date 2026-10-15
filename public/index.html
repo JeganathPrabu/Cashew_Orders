@@ -126,7 +126,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module">
-    import { collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, doc, getDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { db } from "./firebase-config.js";
 
     // Product name/price is managed from the admin dashboard and lives in Firestore at config/product.
@@ -259,6 +259,18 @@
       existingSummaryEl.textContent = `${o.product} × ${o.quantity} — ₹${o.total}`;
       existingAddressEl.textContent = `${o.apartment} · ${o.flatNumber}`;
       existingDateEl.textContent = `Ordered: ${formatDate(o.createdAt)}`;
+    }
+
+    // After placing or updating an order, keep the mobile number and show the order with
+    // Modify/Cancel, so the customer can still change it in the same session.
+    function showSavedOrder(order) {
+      lookupSeq++;
+      lookingUp = false;
+      existingOrder = order;
+      mobileHintEl.textContent = "";
+      clearOrderFields();
+      renderExistingOrder();
+      setMode("existing");
     }
 
     // openOrders/{mobile} points at the customer's open order. Customers can fetch single
@@ -398,18 +410,20 @@
       submitBtn.textContent = editing ? "Updating..." : "Submitting...";
 
       try {
+        let savedOrder;
         if (editing) {
-          await updateDoc(doc(db, "orders", existingOrder.id), {
+          const changes = {
             apartment,
             flatNumber,
             quantity,
             total: quantity * existingOrder.unitPrice,
-          });
+          };
+          await updateDoc(doc(db, "orders", existingOrder.id), changes);
+          savedOrder = { ...existingOrder, ...changes };
         } else {
           // Create the order and its openOrders pointer together.
           const orderRef = doc(collection(db, "orders"));
-          const batch = writeBatch(db);
-          batch.set(orderRef, {
+          const newOrder = {
             product: productName,
             unitPrice,
             mobile,
@@ -418,13 +432,16 @@
             quantity,
             total: quantity * unitPrice,
             status: "open",
-            createdAt: serverTimestamp(),
             closedAt: null,
-          });
+          };
+          const batch = writeBatch(db);
+          batch.set(orderRef, { ...newOrder, createdAt: serverTimestamp() });
           batch.set(doc(db, "openOrders", mobile), { orderId: orderRef.id });
           await batch.commit();
+          // The server sets createdAt; the local clock is close enough for display.
+          savedOrder = { id: orderRef.id, ...newOrder, createdAt: Timestamp.now() };
         }
-        resetForm();
+        showSavedOrder(savedOrder);
         showToast(editing ? "Your order has been updated. ✅" : "Order placed! We'll deliver it soon. ✅");
       } catch (err) {
         console.error(err);
