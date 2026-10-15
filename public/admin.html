@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,13 +8,14 @@
   <link rel="stylesheet" href="style.css" />
   <script src="theme.js"></script>
 </head>
+
 <body>
   <div class="page" id="login-screen">
     <header class="app-header">
       <span class="header-spacer" aria-hidden="true"></span>
       <div class="header-titles">
         <h1>
-          <img class="brand-logo" src="logo.png?v=2" alt="Panruti Cashew logo" width="64" height="64" />
+          <img class="brand-logo" src="logo.png?v=3" alt="Panruti Cashew logo" width="64" height="64" />
           Orders Dashboard
         </h1>
         <p>Sign in to manage orders</p>
@@ -24,9 +26,16 @@
           <input type="checkbox" role="switch" id="theme-toggle-checkbox-login" class="theme-toggle-input" />
           <span class="theme-toggle-track" aria-hidden="true">
             <span class="theme-toggle-thumb"></span>
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
           </span>
         </label>
-        <span class="theme-toggle-label" aria-hidden="true">Dark Mode</span>
       </div>
     </header>
 
@@ -54,7 +63,7 @@
       <span class="header-spacer" aria-hidden="true"></span>
       <div class="header-titles">
         <h1>
-          <img class="brand-logo" src="logo.png?v=2" alt="Panruti Cashew logo" width="64" height="64" />
+          <img class="brand-logo" src="logo.png?v=3" alt="Panruti Cashew logo" width="64" height="64" />
           Orders Dashboard
         </h1>
         <p>Track and close customer orders</p>
@@ -65,9 +74,16 @@
           <input type="checkbox" role="switch" id="theme-toggle-checkbox-dashboard" class="theme-toggle-input" />
           <span class="theme-toggle-track" aria-hidden="true">
             <span class="theme-toggle-thumb"></span>
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
           </span>
         </label>
-        <span class="theme-toggle-label" aria-hidden="true">Dark Mode</span>
       </div>
     </header>
 
@@ -110,6 +126,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-filter="open">Open</button>
       <button class="tab-btn" data-filter="closed">Closed</button>
+      <button class="tab-btn" data-filter="cancelled">Cancelled</button>
       <button class="tab-btn" data-filter="all">All</button>
     </div>
 
@@ -157,7 +174,7 @@
     let currentFilter = "open";
     let unsubscribeOrders = null;
     let unsubscribeProduct = null;
-    let currentProduct = { name: "Whole Cashews (Half Kg)", price: 500 };
+    let currentProduct = { name: "Whole Cashews (500 gms)", price: 500 };
 
     tabButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -268,8 +285,10 @@
         </div>
         <div class="details">
           <div>${order.product} × ${order.quantity} — ₹${order.total}</div>
+          ${order.mobile ? `<div>Mobile: <a href="tel:${order.mobile}">${order.mobile}</a></div>` : ""}
           <div>Ordered: ${formatDate(order.createdAt)}</div>
           ${order.status === "closed" ? `<div>Delivered: ${formatDate(order.closedAt)}</div>` : ""}
+          ${order.status === "cancelled" ? `<div>Cancelled: ${formatDate(order.cancelledAt)}</div>` : ""}
         </div>
         <div class="order-actions">
           ${order.status === "open" ? `<button class="mark-closed" data-id="${order.id}">Mark Delivered</button>` : ""}
@@ -466,4 +485,5 @@
     logoutBtn.addEventListener("click", () => signOut(auth));
   </script>
 </body>
+
 </html>

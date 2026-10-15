@@ -19,6 +19,9 @@
   --status-error-bg: #fbe8e2;
   --badge-open-bg: #fbeed9;
   --badge-closed-bg: #e0f0e5;
+  --badge-cancelled-bg: #fbe8e2;
+  --toast-bg: #2f7d4f;
+  --toast-text: #ffffff;
   --shadow-color: rgba(0, 0, 0, 0.04);
 
   color-scheme: light;
@@ -45,6 +48,9 @@
   --status-error-bg: #3f2420;
   --badge-open-bg: #4a3520;
   --badge-closed-bg: #1f3b2a;
+  --badge-cancelled-bg: #3f2420;
+  --toast-bg: #1f3b2a;
+  --toast-text: #5cd08a;
   --shadow-color: rgba(0, 0, 0, 0.35);
 
   color-scheme: dark;
@@ -99,13 +105,6 @@ header.app-header {
   gap: 4px;
 }
 
-.theme-toggle-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
 header.app-header h1 {
   font-size: 1.4rem;
   margin: 0 0 4px;
@@ -116,10 +115,14 @@ header.app-header h1 {
   gap: 8px;
 }
 
+.app-header {
+  --logo-size: 64px;
+}
+
 .brand-logo {
   flex-shrink: 0;
   display: block;
-  height: 64px;
+  height: var(--logo-size);
   width: auto;
   object-fit: contain;
   border-radius: 50%;
@@ -130,8 +133,8 @@ header.app-header h1 {
 }
 
 @media (max-width: 400px) {
-  .brand-logo {
-    height: 54px;
+  .app-header {
+    --logo-size: 54px;
   }
 
   .app-header .header-spacer {
@@ -143,17 +146,29 @@ header.app-header h1 {
   }
 }
 
+/* The title is centred together with the logo, so pad the subtitle by the logo's width plus
+   the 8px gap to centre it under the title text instead. */
 header.app-header p {
   margin: 0;
+  padding-left: calc(var(--logo-size) + 8px);
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+header.app-header p.tagline {
+  /* Comic Neue (Google Fonts) stands in where Comic Sans isn't installed, e.g. Android. */
+  font-family: "Comic Sans MS", "Comic Sans", "Comic Neue", cursive;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.2;
+  color: var(--accent);
 }
 
 .theme-toggle {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 56px;
+  height: 28px;
   cursor: pointer;
 }
 
@@ -166,33 +181,62 @@ header.app-header p {
   z-index: 1;
 }
 
+/* A pill with a sun and a moon; the knob slides behind whichever theme is active. */
 .theme-toggle-track {
   position: absolute;
   inset: 0;
-  background: var(--border);
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  transition: background-color .2s ease;
-  display: flex;
-  align-items: center;
-  padding: 0 3px;
+  pointer-events: none;
+  transition: background-color .2s ease, border-color .2s ease;
 }
 
 .theme-toggle-thumb {
-  width: 18px;
-  height: 18px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  transition: transform .2s ease;
-  transform: translateX(0);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform .2s ease, background-color .2s ease;
 }
 
-.theme-toggle-input:checked + .theme-toggle-track {
-  background: var(--brand);
+.theme-icon {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke .2s ease;
+}
+
+.theme-icon-sun {
+  left: 6px;
+  stroke: var(--accent);
+}
+
+.theme-icon-moon {
+  left: 34px;
 }
 
 .theme-toggle-input:checked + .theme-toggle-track .theme-toggle-thumb {
-  transform: translateX(20px);
+  transform: translateX(28px);
+}
+
+.theme-toggle-input:checked + .theme-toggle-track .theme-icon-sun {
+  stroke: var(--muted);
+}
+
+.theme-toggle-input:checked + .theme-toggle-track .theme-icon-moon {
+  stroke: var(--accent);
 }
 
 .theme-toggle-input:focus-visible + .theme-toggle-track {
@@ -281,7 +325,8 @@ select,
 input[type="text"],
 input[type="password"],
 input[type="number"],
-input[type="email"] {
+input[type="email"],
+input[type="tel"] {
   width: 100%;
   padding: 12px;
   font-size: 1rem;
@@ -297,7 +342,8 @@ select:focus,
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="number"]:focus,
-input[type="email"]:focus {
+input[type="email"]:focus,
+input[type="tel"]:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -341,6 +387,11 @@ button.secondary {
   color: var(--text);
 }
 
+button.danger {
+  background: var(--status-error-bg);
+  color: var(--danger);
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -367,6 +418,74 @@ button:disabled {
 .status-message.error {
   background: var(--status-error-bg);
   color: var(--danger);
+}
+
+/* Customer page */
+
+.required-mark {
+  color: var(--danger);
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field-hint:empty {
+  display: none;
+}
+
+.existing-order {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.existing-order .top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.existing-order .details {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.existing-order .details div {
+  margin-bottom: 2px;
+}
+
+.existing-order .button-row {
+  margin-top: 14px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1000;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--toast-bg);
+  color: var(--toast-text);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* Admin page */
@@ -454,6 +573,15 @@ button:disabled {
 .badge.closed {
   background: var(--badge-closed-bg);
   color: var(--closed);
+}
+
+.badge.cancelled {
+  background: var(--badge-cancelled-bg);
+  color: var(--danger);
+}
+
+.order-card .details a {
+  color: var(--accent);
 }
 
 .order-card .details {

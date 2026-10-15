@@ -2,11 +2,31 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function validMobile(mobile) {
+      return mobile is string && mobile.matches('^[0-9]{10}$');
+    }
+
+    // The fields a customer or the admin may change on an order, validated the same way as create.
+    function validOrderEdit() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apartment', 'flatNumber', 'quantity', 'total'])
+          && request.resource.data.apartment in ["Navin's", "Casa Grande"]
+          && request.resource.data.flatNumber is string
+          && request.resource.data.flatNumber.size() > 0
+          && request.resource.data.quantity is int
+          && request.resource.data.quantity >= 1
+          && request.resource.data.quantity <= 5;
+    }
+
+    function orderAfter(orderId) {
+      return getAfter(/databases/$(database)/documents/orders/$(orderId));
+    }
+
     match /orders/{orderId} {
       // Customers can create an order, but only in the expected shape.
       allow create: if request.resource.data.keys().hasAll(
-                        ['product', 'unitPrice', 'apartment', 'flatNumber', 'quantity', 'total', 'status', 'createdAt']
+                        ['product', 'unitPrice', 'mobile', 'apartment', 'flatNumber', 'quantity', 'total', 'status', 'createdAt']
                       )
+                    && validMobile(request.resource.data.mobile)
                     && request.resource.data.apartment in ["Navin's", "Casa Grande"]
                     && request.resource.data.flatNumber is string
                     && request.resource.data.flatNumber.size() > 0
@@ -15,27 +35,50 @@ service cloud.firestore {
                     && request.resource.data.quantity <= 5
                     && request.resource.data.status == 'open';
 
-      // Only the signed-in admin can read the order list.
-      allow read: if request.auth != null;
+      // Anyone can fetch a single order by its (unguessable) ID; customers find theirs through
+      // openOrders/{mobile}. Only the signed-in admin can list orders.
+      allow get: if true;
+      allow list: if request.auth != null;
 
-      // Only the signed-in admin can update: either flip status/closedAt,
-      // or edit the order's own contents (validated the same way as create).
-      allow update: if request.auth != null
-                    && (
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'closedAt'])
-                      || (
-                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apartment', 'flatNumber', 'quantity', 'total'])
-                        && request.resource.data.apartment in ["Navin's", "Casa Grande"]
-                        && request.resource.data.flatNumber is string
-                        && request.resource.data.flatNumber.size() > 0
-                        && request.resource.data.quantity is int
-                        && request.resource.data.quantity >= 1
-                        && request.resource.data.quantity <= 5
+      // The signed-in admin can either flip status/closedAt, or edit the order's contents.
+      // A customer can edit or cancel an order while it is still open.
+      allow update: if (
+                      request.auth != null
+                      && (
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'closedAt'])
+                        || validOrderEdit()
+                      )
+                    )
+                    || (
+                      resource.data.status == 'open'
+                      && (
+                        validOrderEdit()
+                        || (
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt'])
+                          && request.resource.data.status == 'cancelled'
+                        )
                       )
                     );
 
       // Only the signed-in admin can delete an order.
       allow delete: if request.auth != null;
+    }
+
+    // openOrders/{mobile} = { orderId }: points at the open order for a mobile number, so the
+    // customer page can find it without being able to list orders.
+    match /openOrders/{mobile} {
+      allow get: if true;
+
+      // Must point at an open order placed with this same mobile number (checked after the batch).
+      allow create, update: if validMobile(mobile)
+                            && request.resource.data.keys().hasOnly(['orderId'])
+                            && request.resource.data.orderId is string
+                            && orderAfter(request.resource.data.orderId).data.mobile == mobile
+                            && orderAfter(request.resource.data.orderId).data.status == 'open';
+
+      // Can be removed once its order is no longer open (e.g. cancelled in the same batch).
+      allow delete: if !existsAfter(/databases/$(database)/documents/orders/$(resource.data.orderId))
+                    || orderAfter(resource.data.orderId).data.status != 'open';
     }
 
     match /config/product {

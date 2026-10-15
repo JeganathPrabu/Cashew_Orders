@@ -1,22 +1,27 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Order Cashews</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" />
   <link rel="stylesheet" href="style.css" />
   <script src="theme.js"></script>
 </head>
+
 <body>
   <div class="page">
     <header class="app-header">
       <span class="header-spacer" aria-hidden="true"></span>
       <div class="header-titles">
         <h1>
-          <img class="brand-logo" src="logo.png?v=2" alt="Panruti Cashew logo" width="64" height="64" />
+          <img class="brand-logo" src="logo.png?v=3" alt="Panruti Cashew logo" width="64" height="64" />
           Panruti Cashews
         </h1>
-        <p>Place your order below</p>
+        <p class="tagline">Place your order below</p>
       </div>
       <div class="theme-toggle-wrap">
         <label class="theme-toggle" for="theme-toggle-checkbox">
@@ -24,9 +29,16 @@
           <input type="checkbox" role="switch" id="theme-toggle-checkbox" class="theme-toggle-input" />
           <span class="theme-toggle-track" aria-hidden="true">
             <span class="theme-toggle-thumb"></span>
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
           </span>
         </label>
-        <span class="theme-toggle-label" aria-hidden="true">Dark Mode</span>
       </div>
     </header>
 
@@ -41,45 +53,75 @@
     <div class="card">
       <form id="order-form">
         <div class="field">
-          <label for="apartment">Apartment</label>
-          <select id="apartment" required>
-            <option value="" disabled selected>Select apartment</option>
-            <option value="Navin's">Navin's</option>
-            <option value="Casa Grande">Casa Grande</option>
-          </select>
+          <label for="mobile">Mobile # <span class="required-mark" aria-hidden="true">*</span></label>
+          <input type="tel" id="mobile" inputmode="numeric" pattern="[0-9]{10}" maxlength="10"
+            autocomplete="tel-national" placeholder="10-digit mobile number" title="Enter a 10-digit mobile number"
+            required />
+          <p class="field-hint" id="mobile-hint" aria-live="polite"></p>
         </div>
 
-        <div class="field">
-          <label for="flatNumber">Flat Number</label>
-          <input type="text" id="flatNumber" placeholder="e.g. A-204" required />
+        <div class="existing-order" id="existing-order" hidden>
+          <div class="top-row">
+            <span>Your open order</span>
+            <span class="badge open">open</span>
+          </div>
+          <div class="details">
+            <div id="existing-summary"></div>
+            <div id="existing-address"></div>
+            <div id="existing-date"></div>
+          </div>
+          <div class="button-row">
+            <button type="button" class="danger" id="cancel-order-btn">Cancel Order</button>
+            <button type="button" class="primary" id="modify-order-btn">Modify Order</button>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="quantity">Quantity (half kg packets)</label>
-          <select id="quantity" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-          </select>
-        </div>
+        <div id="order-fields">
+          <div class="field">
+            <label for="apartment">Apartment <span class="required-mark" aria-hidden="true">*</span></label>
+            <select id="apartment" required>
+              <option value="" disabled selected>Select apartment</option>
+              <option value="Navin's">Navin's</option>
+              <option value="Casa Grande">Casa Grande</option>
+            </select>
+          </div>
 
-        <div class="total-line">
-          <span>Total</span>
-          <span id="total-amount">₹0</span>
-        </div>
+          <div class="field">
+            <label for="flatNumber">Flat Number <span class="required-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="flatNumber" placeholder="e.g. A-204" required />
+          </div>
 
-        <div class="button-row">
-          <button type="button" class="secondary" id="cancel-btn">Cancel</button>
-          <button type="submit" class="primary" id="submit-btn" disabled>Submit Order</button>
+          <div class="field">
+            <label for="quantity">Quantity (500 gms packet) <span class="required-mark"
+                aria-hidden="true">*</span></label>
+            <select id="quantity" required>
+              <option value="" disabled selected>Select quantity</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </div>
+
+          <div class="total-line">
+            <span>Total</span>
+            <span id="total-amount">₹0</span>
+          </div>
+
+          <div class="button-row">
+            <button type="button" class="secondary" id="cancel-btn">Cancel</button>
+            <button type="submit" class="primary" id="submit-btn" disabled>Submit Order</button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script type="module">
-    import { collection, addDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { db } from "./firebase-config.js";
 
     // Product name/price is managed from the admin dashboard and lives in Firestore at config/product.
@@ -102,7 +144,7 @@
           productLoaded = true;
           renderProduct();
           updateTotal();
-          submitBtn.disabled = false;
+          refreshSubmitButton();
         }
       },
       (err) => {
@@ -112,6 +154,15 @@
     );
 
     const form = document.getElementById("order-form");
+    const mobileEl = document.getElementById("mobile");
+    const mobileHintEl = document.getElementById("mobile-hint");
+    const existingOrderEl = document.getElementById("existing-order");
+    const existingSummaryEl = document.getElementById("existing-summary");
+    const existingAddressEl = document.getElementById("existing-address");
+    const existingDateEl = document.getElementById("existing-date");
+    const modifyOrderBtn = document.getElementById("modify-order-btn");
+    const cancelOrderBtn = document.getElementById("cancel-order-btn");
+    const orderFieldsEl = document.getElementById("order-fields");
     const apartmentEl = document.getElementById("apartment");
     const flatNumberEl = document.getElementById("flatNumber");
     const quantityEl = document.getElementById("quantity");
@@ -119,10 +170,37 @@
     const submitBtn = document.getElementById("submit-btn");
     const cancelBtn = document.getElementById("cancel-btn");
     const statusMessageEl = document.getElementById("status-message");
+    const toastEl = document.getElementById("toast");
+
+    // "new": placing a new order. "existing": the mobile number has an open order, shown with
+    // Modify/Cancel. "editing": the form is filled with that open order and saves changes to it.
+    let mode = "new";
+    let existingOrder = null;
+    let lookingUp = false;
+    let lookupSeq = 0;
+    let busy = false;
+
+    function setMode(newMode) {
+      mode = newMode;
+      existingOrderEl.hidden = mode !== "existing";
+      orderFieldsEl.hidden = mode === "existing";
+      submitBtn.textContent = mode === "editing" ? "Update Order" : "Submit Order";
+      cancelBtn.textContent = mode === "editing" ? "Discard Changes" : "Cancel";
+      refreshSubmitButton();
+    }
+
+    function refreshSubmitButton() {
+      submitBtn.disabled = busy || lookingUp || (mode === "new" && !productLoaded);
+    }
+
+    // Edits keep the price the order was placed at.
+    function currentUnitPrice() {
+      return mode === "editing" && existingOrder ? existingOrder.unitPrice : unitPrice;
+    }
 
     function updateTotal() {
       const qty = parseInt(quantityEl.value, 10) || 0;
-      totalAmountEl.textContent = `₹${qty * unitPrice}`;
+      totalAmountEl.textContent = `₹${qty * currentUnitPrice()}`;
     }
     quantityEl.addEventListener("change", updateTotal);
     updateTotal();
@@ -136,61 +214,223 @@
       statusMessageEl.className = "status-message";
     }
 
-    function resetForm() {
-      form.reset();
+    let toastTimer = null;
+    function showToast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 4000);
+    }
+
+    function formatDate(ts) {
+      if (!ts || !ts.toDate) return "—";
+      return ts.toDate().toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function clearOrderFields() {
       apartmentEl.selectedIndex = 0;
-      quantityEl.value = "1";
+      flatNumberEl.value = "";
+      quantityEl.selectedIndex = 0;
       updateTotal();
     }
 
-    cancelBtn.addEventListener("click", () => {
-      resetForm();
+    function resetForm() {
+      form.reset();
+      lookupSeq++;
+      lookingUp = false;
+      existingOrder = null;
+      mobileHintEl.textContent = "";
+      clearOrderFields();
+      setMode("new");
+    }
+
+    function renderExistingOrder() {
+      const o = existingOrder;
+      existingSummaryEl.textContent = `${o.product} × ${o.quantity} — ₹${o.total}`;
+      existingAddressEl.textContent = `${o.apartment} · ${o.flatNumber}`;
+      existingDateEl.textContent = `Ordered: ${formatDate(o.createdAt)}`;
+    }
+
+    // openOrders/{mobile} points at the customer's open order. Customers can fetch single
+    // documents by ID but cannot list orders, so this is how an order is found by mobile number.
+    async function lookUpOpenOrder(mobile) {
+      const seq = ++lookupSeq;
+      lookingUp = true;
+      refreshSubmitButton();
+      mobileHintEl.textContent = "Checking for an existing order…";
+      try {
+        let order = null;
+        const pointer = await getDoc(doc(db, "openOrders", mobile));
+        if (pointer.exists()) {
+          const snap = await getDoc(doc(db, "orders", pointer.data().orderId));
+          // The pointer goes stale once the admin delivers or deletes the order.
+          if (snap.exists() && snap.data().status === "open") {
+            order = { id: snap.id, ...snap.data() };
+          }
+        }
+        if (seq !== lookupSeq) return;
+        existingOrder = order;
+        if (order) {
+          renderExistingOrder();
+          mobileHintEl.textContent = "";
+          setMode("existing");
+        } else {
+          mobileHintEl.textContent = "No open order for this number. Fill in the details below to place one.";
+          setMode("new");
+        }
+      } catch (err) {
+        // If the lookup fails, quietly carry on as a new order rather than showing an error.
+        if (seq !== lookupSeq) return;
+        console.error(err);
+        existingOrder = null;
+        mobileHintEl.textContent = "";
+        setMode("new");
+      } finally {
+        if (seq === lookupSeq) {
+          lookingUp = false;
+          refreshSubmitButton();
+        }
+      }
+    }
+
+    mobileEl.addEventListener("input", () => {
+      const digits = mobileEl.value.replace(/\D/g, "").slice(0, 10);
+      if (digits !== mobileEl.value) mobileEl.value = digits;
+
+      // Any change to the number invalidates the previous lookup.
+      lookupSeq++;
+      lookingUp = false;
       hideStatus();
+      mobileHintEl.textContent = "";
+      if (mode === "editing") clearOrderFields();
+      existingOrder = null;
+      setMode("new");
+
+      if (digits.length === 10) lookUpOpenOrder(digits);
+    });
+
+    modifyOrderBtn.addEventListener("click", () => {
+      if (!existingOrder) return;
+      hideStatus();
+      apartmentEl.value = existingOrder.apartment;
+      flatNumberEl.value = existingOrder.flatNumber;
+      quantityEl.value = String(existingOrder.quantity);
+      setMode("editing");
+      updateTotal();
+    });
+
+    cancelOrderBtn.addEventListener("click", async () => {
+      if (!existingOrder) return;
+      if (!confirm("Cancel your order? This cannot be undone.")) return;
+      hideStatus();
+      cancelOrderBtn.disabled = true;
+      modifyOrderBtn.disabled = true;
+      try {
+        const batch = writeBatch(db);
+        batch.update(doc(db, "orders", existingOrder.id), {
+          status: "cancelled",
+          cancelledAt: serverTimestamp(),
+        });
+        batch.delete(doc(db, "openOrders", existingOrder.mobile));
+        await batch.commit();
+        resetForm();
+        showToast("Your order has been cancelled.");
+      } catch (err) {
+        console.error(err);
+        showStatus("Could not cancel the order. Please try again.", "error");
+      } finally {
+        cancelOrderBtn.disabled = false;
+        modifyOrderBtn.disabled = false;
+      }
+    });
+
+    cancelBtn.addEventListener("click", () => {
+      hideStatus();
+      if (mode === "editing") {
+        clearOrderFields();
+        setMode("existing");
+      } else {
+        resetForm();
+      }
     });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       hideStatus();
 
-      if (!productLoaded) {
+      if (mode === "existing") {
+        showStatus("You already have an open order. Modify or cancel it below.", "error");
+        return;
+      }
+      if (lookingUp) return;
+      if (mode === "new" && !productLoaded) {
         showStatus("Still loading product info, please wait a moment.", "error");
         return;
       }
 
+      const mobile = mobileEl.value.trim();
       const apartment = apartmentEl.value;
       const flatNumber = flatNumberEl.value.trim();
       const quantity = parseInt(quantityEl.value, 10);
 
+      if (!/^[0-9]{10}$/.test(mobile)) {
+        showStatus("Please enter a valid 10-digit mobile number.", "error");
+        return;
+      }
       if (!apartment || !flatNumber || !quantity) {
         showStatus("Please fill in all fields.", "error");
         return;
       }
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting...";
+      const editing = mode === "editing";
+      busy = true;
+      refreshSubmitButton();
+      submitBtn.textContent = editing ? "Updating..." : "Submitting...";
 
       try {
-        await addDoc(collection(db, "orders"), {
-          product: productName,
-          unitPrice,
-          apartment,
-          flatNumber,
-          quantity,
-          total: quantity * unitPrice,
-          status: "open",
-          createdAt: serverTimestamp(),
-          closedAt: null,
-        });
-        showStatus("Order placed! We'll deliver it soon. ✅", "success");
+        if (editing) {
+          await updateDoc(doc(db, "orders", existingOrder.id), {
+            apartment,
+            flatNumber,
+            quantity,
+            total: quantity * existingOrder.unitPrice,
+          });
+        } else {
+          // Create the order and its openOrders pointer together.
+          const orderRef = doc(collection(db, "orders"));
+          const batch = writeBatch(db);
+          batch.set(orderRef, {
+            product: productName,
+            unitPrice,
+            mobile,
+            apartment,
+            flatNumber,
+            quantity,
+            total: quantity * unitPrice,
+            status: "open",
+            createdAt: serverTimestamp(),
+            closedAt: null,
+          });
+          batch.set(doc(db, "openOrders", mobile), { orderId: orderRef.id });
+          await batch.commit();
+        }
         resetForm();
+        showToast(editing ? "Your order has been updated. ✅" : "Order placed! We'll deliver it soon. ✅");
       } catch (err) {
         console.error(err);
         showStatus("Something went wrong. Please try again.", "error");
+        submitBtn.textContent = editing ? "Update Order" : "Submit Order";
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Order";
+        busy = false;
+        refreshSubmitButton();
       }
     });
   </script>
 </body>
+
 </html>
