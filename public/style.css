@@ -437,6 +437,11 @@ button:disabled {
   color: var(--success);
 }
 
+.status-message.info {
+  background: var(--badge-open-bg);
+  color: var(--open);
+}
+
 .status-message.error {
   background: var(--status-error-bg);
   color: var(--danger);
@@ -480,6 +485,17 @@ button:disabled {
 
 .existing-order .details div {
   margin-bottom: 2px;
+}
+
+.link-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 4px;
+  background: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  text-decoration: underline;
 }
 
 .existing-order .button-row {

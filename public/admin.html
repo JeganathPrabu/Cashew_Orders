@@ -153,9 +153,10 @@
   </div>
 
   <script type="module">
-    import { collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { db, auth } from "./firebase-config.js";
+    import { flatKey } from "./flat-key.js";
 
     const loginScreen = document.getElementById("login-screen");
     const dashboardScreen = document.getElementById("dashboard-screen");
@@ -260,16 +261,56 @@
 
     // Open orders for the same apartment and flat may be duplicates. Flat numbers are compared
     // ignoring case, spaces and punctuation, so "A-204" and "a 204" match.
-    function flatKey(order) {
-      return `${order.apartment}|${String(order.flatNumber || "").toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+    function orderFlatKey(order) {
+      return flatKey(order.apartment, order.flatNumber);
     }
 
     function openCountsByFlat() {
       const counts = new Map();
       allOrders.forEach((o) => {
-        if (o.status === "open") counts.set(flatKey(o), (counts.get(flatKey(o)) || 0) + 1);
+        if (o.status === "open") counts.set(orderFlatKey(o), (counts.get(orderFlatKey(o)) || 0) + 1);
       });
       return counts;
+    }
+
+    // Make sure every open order's flat has an openFlats pointer to an open order for that flat, so
+    // the customer page can find it. This covers orders placed before openFlats existed, reopened
+    // orders and admin edits. Pointers already confirmed this session are not re-read.
+    const confirmedFlatPointers = new Map();
+    let syncingFlatPointers = false;
+    let flatPointerSyncPending = false;
+
+    async function syncFlatPointers() {
+      if (syncingFlatPointers) {
+        flatPointerSyncPending = true;
+        return;
+      }
+      syncingFlatPointers = true;
+      try {
+        const openOrders = allOrders.filter((o) => o.status === "open");
+        const isValid = (key, orderId) => openOrders.some((o) => o.id === orderId && orderFlatKey(o) === key);
+        for (const order of openOrders) {
+          const key = orderFlatKey(order);
+          if (isValid(key, confirmedFlatPointers.get(key))) continue;
+          const ref = doc(db, "openFlats", key);
+          const snap = await getDoc(ref);
+          const current = snap.exists() ? snap.data().orderId : null;
+          if (isValid(key, current)) {
+            confirmedFlatPointers.set(key, current);
+            continue;
+          }
+          await setDoc(ref, { orderId: order.id });
+          confirmedFlatPointers.set(key, order.id);
+        }
+      } catch (err) {
+        console.error("Could not sync openFlats pointers", err);
+      } finally {
+        syncingFlatPointers = false;
+        if (flatPointerSyncPending && auth.currentUser) {
+          flatPointerSyncPending = false;
+          syncFlatPointers();
+        }
+      }
     }
 
     async function deleteOrder(orderId) {
@@ -386,7 +427,7 @@
       const flatCounts = openCountsByFlat();
       ordersContainer.innerHTML = "";
       filtered.forEach((order) => {
-        const duplicateCount = order.status === "open" ? flatCounts.get(flatKey(order)) : 0;
+        const duplicateCount = order.status === "open" ? flatCounts.get(orderFlatKey(order)) : 0;
         const card = document.createElement("div");
         card.className = duplicateCount > 1 ? "order-card duplicate" : "order-card";
         card.dataset.id = order.id;
@@ -557,6 +598,7 @@
         (snapshot) => {
           allOrders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
           render();
+          syncFlatPointers();
         },
         (err) => {
           console.error(err);

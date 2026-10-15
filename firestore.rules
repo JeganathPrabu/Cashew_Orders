@@ -24,6 +24,11 @@ service cloud.firestore {
       return !exists(settings) || get(settings).data.get('ordersFrozen', false) != true;
     }
 
+    // Same as flatKey() in public/flat-key.js: apartment and flat number, lowercased, alphanumerics only.
+    function flatKeyOf(order) {
+      return order.apartment.lower().replace('[^a-z0-9]', '') + '_' + order.flatNumber.lower().replace('[^a-z0-9]', '');
+    }
+
     function orderAfter(orderId) {
       return getAfter(/databases/$(database)/documents/orders/$(orderId));
     }
@@ -89,6 +94,18 @@ service cloud.firestore {
       // Can be removed once its order is no longer open (e.g. cancelled in the same batch).
       allow delete: if !existsAfter(/databases/$(database)/documents/orders/$(resource.data.orderId))
                     || orderAfter(resource.data.orderId).data.status != 'open';
+    }
+
+    // openFlats/{flatKey} = { orderId }: points at an open order for an apartment + flat, so the
+    // customer page can spot an existing order for the flat being ordered for. Like openOrders, it
+    // may go stale; readers check that the order is still open and still for this flat.
+    match /openFlats/{flatKey} {
+      allow get: if true;
+
+      allow create, update: if request.resource.data.keys().hasOnly(['orderId'])
+                            && request.resource.data.orderId is string
+                            && orderAfter(request.resource.data.orderId).data.status == 'open'
+                            && flatKeyOf(orderAfter(request.resource.data.orderId).data) == flatKey;
     }
 
     match /config/product {

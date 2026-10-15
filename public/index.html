@@ -66,7 +66,7 @@
 
         <div class="existing-order" id="existing-order" hidden>
           <div class="top-row">
-            <span>Your open order</span>
+            <span id="existing-label">Your open order</span>
             <span class="badge open">open</span>
           </div>
           <div class="details">
@@ -78,6 +78,7 @@
             <button type="button" class="danger" id="cancel-order-btn">Cancel Order</button>
             <button type="button" class="primary" id="modify-order-btn">Modify Order</button>
           </div>
+          <button type="button" class="link-btn" id="change-flat-btn" hidden>Not your order? Change the flat number</button>
         </div>
 
         <div id="order-fields">
@@ -130,8 +131,9 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module">
-    import { collection, doc, getDoc, onSnapshot, serverTimestamp, Timestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, doc, getDoc, onSnapshot, serverTimestamp, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { db } from "./firebase-config.js";
+    import { flatKey } from "./flat-key.js";
 
     // Product name/price is managed from the admin dashboard and lives in Firestore at config/product.
     const productListEl = document.getElementById("product-list");
@@ -166,6 +168,8 @@
     const mobileEl = document.getElementById("mobile");
     const mobileHintEl = document.getElementById("mobile-hint");
     const existingOrderEl = document.getElementById("existing-order");
+    const existingLabelEl = document.getElementById("existing-label");
+    const changeFlatBtn = document.getElementById("change-flat-btn");
     const existingSummaryEl = document.getElementById("existing-summary");
     const existingAddressEl = document.getElementById("existing-address");
     const existingDateEl = document.getElementById("existing-date");
@@ -186,6 +190,9 @@
     // Modify/Cancel. "editing": the form is filled with that open order and saves changes to it.
     let mode = "new";
     let existingOrder = null;
+    // How existingOrder was found: "mobile" (lookup or just saved) or "flat" (same apartment + flat).
+    let existingVia = "mobile";
+    let flatCheckSeq = 0;
     let lookingUp = false;
     let lookupSeq = 0;
     let busy = false;
@@ -292,6 +299,8 @@
 
     function renderExistingOrder() {
       const o = existingOrder;
+      existingLabelEl.textContent = existingVia === "flat" ? "Existing order for this flat" : "Your open order";
+      changeFlatBtn.hidden = existingVia !== "flat";
       existingSummaryEl.textContent = `${o.product} × ${o.quantity} — ₹${o.total}`;
       existingAddressEl.textContent = `${o.apartment} · ${o.flatNumber}`;
       existingDateEl.textContent = `Ordered: ${formatDate(o.createdAt)}`;
@@ -301,13 +310,70 @@
     // Modify/Cancel, so the customer can still change it in the same session.
     function showSavedOrder(order) {
       lookupSeq++;
+      flatCheckSeq++;
       lookingUp = false;
       existingOrder = order;
+      existingVia = "mobile";
       mobileHintEl.textContent = "";
       clearOrderFields();
       renderExistingOrder();
       setMode("existing");
     }
+
+    // openFlats/{flatKey} points at an open order for that apartment + flat. Like openOrders it can
+    // be stale, so the order must still be open and still for this flat. Errors count as "none".
+    async function findOpenOrderForFlat(apartment, flatNumber) {
+      const key = flatKey(apartment, flatNumber);
+      try {
+        const pointer = await getDoc(doc(db, "openFlats", key));
+        if (!pointer.exists()) return null;
+        const snap = await getDoc(doc(db, "orders", pointer.data().orderId));
+        if (!snap.exists()) return null;
+        const order = { id: snap.id, ...snap.data() };
+        return order.status === "open" && flatKey(order.apartment, order.flatNumber) === key ? order : null;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    function showFlatMatch(order) {
+      lookupSeq++;
+      flatCheckSeq++;
+      lookingUp = false;
+      existingOrder = order;
+      existingVia = "flat";
+      mobileHintEl.textContent = "";
+      clearOrderFields();
+      renderExistingOrder();
+      setMode("existing");
+      showStatus("An order already exists for this apartment and flat number. You can modify or cancel it below.", "info");
+    }
+
+    // While placing a new order, check the apartment + flat as soon as both are filled in.
+    async function checkFlat() {
+      if (mode !== "new" || ordersFrozen) return;
+      const apartment = apartmentEl.value;
+      const flatNumber = flatNumberEl.value.trim();
+      if (!apartment || !flatNumber) return;
+      const seq = ++flatCheckSeq;
+      const order = await findOpenOrderForFlat(apartment, flatNumber);
+      if (seq !== flatCheckSeq || mode !== "new" || !order) return;
+      showFlatMatch(order);
+    }
+    apartmentEl.addEventListener("change", checkFlat);
+    flatNumberEl.addEventListener("change", checkFlat);
+
+    changeFlatBtn.addEventListener("click", () => {
+      const apartment = existingOrder ? existingOrder.apartment : "";
+      hideStatus();
+      existingOrder = null;
+      existingVia = "mobile";
+      setMode("new");
+      apartmentEl.value = apartment;
+      flatNumberEl.value = "";
+      flatNumberEl.focus();
+    });
 
     // openOrders/{mobile} points at the customer's open order. Customers can fetch single
     // documents by ID but cannot list orders, so this is how an order is found by mobile number.
@@ -328,6 +394,7 @@
         }
         if (seq !== lookupSeq) return;
         existingOrder = order;
+        existingVia = "mobile";
         if (order) {
           renderExistingOrder();
           mobileHintEl.textContent = "";
@@ -357,10 +424,12 @@
 
       // Any change to the number invalidates the previous lookup.
       lookupSeq++;
+      flatCheckSeq++;
       lookingUp = false;
       hideStatus();
       mobileHintEl.textContent = "";
-      if (mode === "editing") clearOrderFields();
+      if (mode === "editing" || existingVia === "flat") clearOrderFields();
+      existingVia = "mobile";
       existingOrder = null;
       setMode("new");
 
@@ -389,7 +458,14 @@
           status: "cancelled",
           cancelledAt: serverTimestamp(),
         });
-        batch.delete(doc(db, "openOrders", existingOrder.mobile));
+        // Remove the mobile's pointer only if it points at this order (an order found by flat may
+        // belong to a number whose pointer points elsewhere, and older orders have no mobile).
+        if (existingOrder.mobile) {
+          const pointer = await getDoc(doc(db, "openOrders", existingOrder.mobile));
+          if (pointer.exists() && pointer.data().orderId === existingOrder.id) {
+            batch.delete(pointer.ref);
+          }
+        }
         await batch.commit();
         resetForm();
         showToast("Your order has been cancelled.");
@@ -446,6 +522,22 @@
       refreshSubmitButton();
       submitBtn.textContent = editing ? "Updating..." : "Submitting...";
 
+      // Never create a second open order for a flat, or move an order onto a flat that has one.
+      const flatChanged = !editing ||
+        flatKey(apartment, flatNumber) !== flatKey(existingOrder.apartment, existingOrder.flatNumber);
+      const flatOrder = flatChanged ? await findOpenOrderForFlat(apartment, flatNumber) : null;
+      if (flatOrder && !(editing && flatOrder.id === existingOrder.id)) {
+        busy = false;
+        submitBtn.textContent = editing ? "Update Order" : "Submit Order";
+        refreshSubmitButton();
+        if (editing) {
+          showStatus("Another open order already exists for this apartment and flat number.", "error");
+        } else {
+          showFlatMatch(flatOrder);
+        }
+        return;
+      }
+
       try {
         let savedOrder;
         if (editing) {
@@ -455,7 +547,10 @@
             quantity,
             total: quantity * existingOrder.unitPrice,
           };
-          await updateDoc(doc(db, "orders", existingOrder.id), changes);
+          const batch = writeBatch(db);
+          batch.update(doc(db, "orders", existingOrder.id), changes);
+          batch.set(doc(db, "openFlats", flatKey(apartment, flatNumber)), { orderId: existingOrder.id });
+          await batch.commit();
           savedOrder = { ...existingOrder, ...changes };
         } else {
           // Create the order and its openOrders pointer together.
@@ -474,6 +569,7 @@
           const batch = writeBatch(db);
           batch.set(orderRef, { ...newOrder, createdAt: serverTimestamp() });
           batch.set(doc(db, "openOrders", mobile), { orderId: orderRef.id });
+          batch.set(doc(db, "openFlats", flatKey(apartment, flatNumber)), { orderId: orderRef.id });
           await batch.commit();
           // The server sets createdAt; the local clock is close enough for display.
           savedOrder = { id: orderRef.id, ...newOrder, createdAt: Timestamp.now() };
