@@ -3,6 +3,23 @@
 A lightweight web app for taking cashew orders from residents of nearby apartments. Customers place orders from a simple mobile-friendly form, and the seller tracks, edits and closes those orders from a private admin dashboard. Everything runs in the browser against Firebase, with no backend server to maintain.
 
 **Live site:** https://cashew-orders.web.app/ (admin: `/admin.html`)
+## Highlights
+
+- **No sign-up for customers:** order with a mobile number, then view, modify or cancel using the same number
+- **Admin dashboard:** secure login, live order tabs, pending total, mark delivered, and a one-click "Freeze Orders" switch
+- **Duplicate protection:** one open order per mobile number and per flat, with warnings for possible duplicates
+- **Security in the database rules:** access is enforced by Firestore Security Rules, not by hiding pages
+- **No server to maintain:** plain HTML, CSS and JavaScript on Firebase Hosting and Firestore
+
+## Screenshots
+
+| Place an order | Order placed | Admin dashboard |
+|:---:|:---:|:---:|
+| <img src="images/screenshots/customer-form.png" width="250" alt="Customer order form"> | <img src="images/screenshots/order-placed.png" width="250" alt="Order placed with Modify and Cancel options"> | <img src="images/screenshots/admin-dashboard.png" width="250" alt="Admin dashboard with open orders"> |
+
+## How I built it
+
+I built this app with **Claude Code** as my coding partner. I described each feature in plain English, reviewed the plan before any code was written, tested every change on my phone against the live site, and asked for fixes until it worked the way I wanted. I kept a `CLAUDE.md` file in the repo so Claude Code understood the project's structure, rules and deployment steps from one session to the next. I used feature branches and merged through a pull request, then deployed to Firebase from `main`.
 
 ## Features
 
